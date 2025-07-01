@@ -4,8 +4,8 @@ from typing import Dict, Any
 CAR_MODEL_PATH = Path("models/yolo11n.pt")
 PLATE_MODEL_PATH = Path("models/plate_detector.pt")
 
-TARGET_FPS = 30.0
-FRAMES_INSIDE_THRESHOLD = 30
+TARGET_FPS = 10.0
+FRAMES_INSIDE_THRESHOLD = 10
 
 CLASSES_CAR = [2, 3, 5, 7]     # car, motorbike, bus, truck
 CONF_CAR = 0.5

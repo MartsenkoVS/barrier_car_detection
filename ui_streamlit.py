@@ -21,8 +21,7 @@ from src.config import TARGET_FPS
 
 def bgr_to_jpeg(frame: np.ndarray, quality: int = 80) -> bytes:
     """BGR-кадр -> bytes(JPEG) для быстрой передачи в Streamlit."""
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    ok, buf = cv2.imencode(".jpg", rgb, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+    ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     return buf.tobytes() if ok else b""
 
 
