@@ -4,6 +4,7 @@ from threading import Event
 import time
 from pathlib import Path
 import cv2
+import numpy as np
 
 import streamlit as st
 
@@ -15,6 +16,14 @@ if str(SRC_DIR) not in sys.path:
 
 from src.pipeline import run_video_stream
 from src.downloader import download_yadisk
+from src.config import TARGET_FPS
+
+
+def bgr_to_jpeg(frame: np.ndarray, quality: int = 80) -> bytes:
+    """BGR-кадр -> bytes(JPEG) для быстрой передачи в Streamlit."""
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    ok, buf = cv2.imencode(".jpg", rgb, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+    return buf.tobytes() if ok else b""
 
 
 st.set_page_config("Barrier car detection", layout="wide")
@@ -57,6 +66,8 @@ if start:
         daemon=True)
     t.start()
 
+    last_ts = 0.0
+
     try:
         # отображаем кадры, пока поток жив
         while t.is_alive():
@@ -65,9 +76,13 @@ if start:
                 text  = q_txt.get_nowait()
             except queue.Empty:
                 continue
-            txt_pl.markdown(f"**Статус:** {text}")
-            img_pl.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=True)
-            time.sleep(0.03)
+            now = time.time()
+            if now - last_ts >= 1 / TARGET_FPS:
+                img_pl.image(bgr_to_jpeg(frame, quality=80))
+                txt_pl.markdown(f"**Статус:** {text}")
+                last_ts = now
+
+            time.sleep(0.01)
     finally:
         stop_event.set()
         t.join(timeout=2)
