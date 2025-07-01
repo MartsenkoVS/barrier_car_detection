@@ -76,8 +76,8 @@ def run_video_stream(
                 status_parts.append(status)
                 cv2.putText(
                     annotated, status,
-                    (30, 30 + 40 * list(rois).index(roi.name)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, roi.color, 1,
+                    (30, 50 + 50 * list(rois).index(roi.name)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.5, roi.color, 2,
                 )
 
             on_frame(annotated, " | ".join(status_parts))

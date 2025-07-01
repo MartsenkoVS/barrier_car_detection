@@ -9,32 +9,34 @@ import streamlit as st
 
 import sys, pathlib
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent
-SRC_DIR      = PROJECT_ROOT / "src"
+SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from src.pipeline import run_video_stream
+from src.downloader import download_yadisk
+
 
 st.set_page_config("Barrier car detection", layout="wide")
 st.title("Детекция машин в зоне шлагбаума")
+st.markdown("Тестовое видео уже загружено на сервер, можно сразу нажать 'Старт',\
+            или для загрузки видео ввести ссылку на Яндекс диск (загрузка ~5 минут), и нажать 'Старт':")
 
-upload = st.file_uploader("Видео:", type=["avi", "mp4"])
-local  = st.text_input("Видео заранее загружено на сервер:", "video/cvtest.avi")
+link = st.text_input("Ссылка на видео на Яндекс диске:")
+local  = st.text_input("Запуск видео с сервера:", "video/cvtest.avi")
 start  = st.button("Старт")
 
 img_pl = st.empty()
 txt_pl = st.empty()
 
 if start:
-    if upload:
-        tmp = Path("tmp") / upload.name
-        tmp.parent.mkdir(exist_ok=True)
-        with open(tmp, "wb") as f:
-            for chunk in upload.chunks():
-                f.write(upload.read())
-        src = tmp
-    else:
+    if link.strip():
+        src = download_yadisk(link.strip(), Path("video/cvtest.avi"))
+    elif local:
         src = Path(local)
+    else:
+        st.error("Нужно выбрать файл или указать ссылку!")
+        st.stop()
 
     q_img = queue.Queue(maxsize=2)
     q_txt = queue.Queue(maxsize=2)
