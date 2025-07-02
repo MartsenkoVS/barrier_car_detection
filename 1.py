@@ -58,7 +58,7 @@ if start:
                 cap.release()  # Release the capture
                 st.stop()  # Stop streamlit app
 
-            img_pl.image(annotated_frame, channels="BGR")  # Display processed frame
+            img_pl.image(annotated_frame, channels="BGR", width=640)  # Display processed frame
 
         cap.release()  # Release the capture
     cv2.destroyAllWindows()  # Destroy all OpenCV windows
