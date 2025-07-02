@@ -32,12 +32,12 @@ def run_video_stream(
     cap = cv2.VideoCapture(str(source))
     fps_in = cap.get(cv2.CAP_PROP_FPS) or 30.0
     cap.release()
-    stride = max(1, round(fps_in / TARGET_FPS))
+    # stride = max(1, round(fps_in / TARGET_FPS))
 
     stream = car_det.track(
         source=str(source), stream=True,
-        conf=CONF_CAR, classes=CLASSES_CAR, vid_stride=stride,
-        verbose=False
+        conf=CONF_CAR, classes=CLASSES_CAR, #vid_stride=stride,
+        verbose=False, persist=True
     )
     
     try:
@@ -46,7 +46,6 @@ def run_video_stream(
                 break
             frame = res.orig_img
             annotated = res.plot(line_width=2)
-
             if res.boxes and res.boxes.is_track:
                 boxes = res.boxes.xyxy.cpu().numpy()
                 tids  = res.boxes.id.int().cpu().tolist()

@@ -19,6 +19,15 @@ from src.downloader import download_yadisk
 from src.config import TARGET_FPS
 
 
+def downscale(frame: np.ndarray, max_width: int = 1280) -> np.ndarray:
+    """Сжимает BGR-кадр, сохраняя пропорции, если ширина > max_width."""
+    h, w = frame.shape[:2]
+    if w <= max_width:
+        return frame
+    scale = max_width / w
+    new_size = (int(w * scale), int(h * scale))
+    return cv2.resize(frame, new_size, interpolation=cv2.INTER_AREA)
+
 def bgr_to_jpeg(frame: np.ndarray, quality: int = 80) -> bytes:
     """BGR-кадр -> bytes(JPEG) для быстрой передачи в Streamlit."""
     ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
@@ -77,7 +86,9 @@ if start:
                 continue
             now = time.time()
             if now - last_ts >= 1 / TARGET_FPS:
-                img_pl.image(bgr_to_jpeg(frame, quality=80))
+                small = downscale(frame, 640)
+                jpeg  = bgr_to_jpeg(small, quality=80)
+                img_pl.image(jpeg)
                 txt_pl.markdown(f"**Статус:** {text}")
                 last_ts = now
 
