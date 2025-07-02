@@ -50,10 +50,10 @@ def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
     if not cap.isOpened():
         raise RuntimeError(f"Не удалось открыть видео: {src}")
 
-    # исходный FPS и шаг пропуска кадров
-    in_fps = cap.get(cv2.CAP_PROP_FPS) or TARGET_FPS
-    skip = max(1, round(in_fps / TARGET_FPS))
-    frame_idx = 0
+    # # исходный FPS и шаг пропуска кадров
+    # in_fps = cap.get(cv2.CAP_PROP_FPS) or TARGET_FPS
+    # skip = max(1, round(in_fps / TARGET_FPS))
+    # frame_idx = 0
 
     try:
         while True:
@@ -61,9 +61,9 @@ def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
             if not ret:
                 break
 
-            frame_idx += 1
-            if frame_idx % skip != 0:
-                continue
+            # frame_idx += 1
+            # if frame_idx % skip != 0:
+            #     continue
 
             # трекинг/детекция
             results = model.track(
@@ -86,8 +86,8 @@ def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
                 + b"\r\n"
             )
 
-            # Контролируем fps
-            time.sleep(1.0 / TARGET_FPS)
+            # # Контролируем fps
+            # time.sleep(1.0 / TARGET_FPS)
     finally:
         cap.release()
 
