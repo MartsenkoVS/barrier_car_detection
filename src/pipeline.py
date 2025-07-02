@@ -5,6 +5,7 @@ from typing import Callable, Dict
 
 from ultralytics import YOLO
 import easyocr
+from transliterate import translit
 from threading import Event
 
 from src.config import (CAR_MODEL_PATH, PLATE_MODEL_PATH, POLYGONS_CFG,
@@ -69,7 +70,7 @@ def run_video_stream(
                     plate_txt = plate_registry.get(tid, "")
                     status = f"{roi.name}: id={tid}, f={roi.frames_inside}"
                     if plate_txt:
-                        status += f", plate={plate_txt}"
+                        status += f", plate={translit(plate_txt, 'en')}"
                 else:
                     status = f"{roi.name}: No cars"
                 status_parts.append(status)

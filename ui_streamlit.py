@@ -74,25 +74,57 @@ if start:
         daemon=True)
     t.start()
 
+    # last_ts = 0.0
+
+    # try:
+    #     # отображаем кадры, пока поток жив
+    #     while t.is_alive():
+    #         try:
+    #             frame = q_img.get(timeout=0.1)
+    #             text  = q_txt.get_nowait()
+    #         except queue.Empty:
+    #             continue
+    #         now = time.time()
+    #         if now - last_ts >= 1 / TARGET_FPS:
+    #             small = downscale(frame, 640)
+    #             jpeg  = bgr_to_jpeg(small, quality=80)
+    #             img_pl.image(jpeg)
+    #             txt_pl.markdown(f"**Статус:** {text}")
+    #             last_ts = now
+
+    #         time.sleep(0.01)
+    # finally:
+    #     stop_event.set()
+    #     t.join(timeout=2)
     last_ts = 0.0
-
-    try:
-        # отображаем кадры, пока поток жив
-        while t.is_alive():
-            try:
-                frame = q_img.get(timeout=0.1)
-                text  = q_txt.get_nowait()
-            except queue.Empty:
-                continue
-            now = time.time()
-            if now - last_ts >= 1 / TARGET_FPS:
-                small = downscale(frame, 640)
-                jpeg  = bgr_to_jpeg(small, quality=80)
-                img_pl.image(jpeg)
-                txt_pl.markdown(f"**Статус:** {text}")
-                last_ts = now
-
+    while t.is_alive():
+        try:
+            # ждём одновременно кадр и текст, с небольшим таймаутом
+            frame = q_img.get(timeout=0.1)
+            text  = q_txt.get(timeout=0.1)
+        except queue.Empty:
+            # если нет ни кадра, ни текста — просто ждём дальше
             time.sleep(0.01)
-    finally:
-        stop_event.set()
-        t.join(timeout=2)
+            continue
+
+        # контролируем target_fps
+        now = time.time()
+        if now - last_ts < 1 / TARGET_FPS:
+            continue
+        last_ts = now
+
+        # 1) уменьшаем размер
+        small = downscale(frame, max_width=640)
+        # 2) конвертируем BGR → RGB
+        small_rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+
+        # 3) выводим через placeholder
+        img_pl.image(
+            small_rgb,
+            use_container_width=True
+        )
+        txt_pl.markdown(f"**Статус:** {text}")
+
+    # по выходе из цикла останавливаем поток
+    stop_event.set()
+    t.join(timeout=2)
