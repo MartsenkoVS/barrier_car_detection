@@ -18,9 +18,9 @@ app = FastAPI()
 
 # Загружаем модель и при возможности отправляем её на GPU
 model = YOLO("models/yolo11n.pt")
-if torch.cuda.is_available():
-    model.to("cuda")
-    print("Модель переведена на GPU")
+# if torch.cuda.is_available():
+#     model.to("cuda")
+#     print("Модель переведена на GPU")
 
 # Простая HTML-страница с <img src="/video_feed">
 HTML_PAGE = """
