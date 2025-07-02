@@ -4,8 +4,8 @@ from typing import Generator
 import cv2
 import time
 import torch
-from fastapi import FastAPI, StreamingResponse
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse, StreamingResponse
 from ultralytics import YOLO
 
 # Путь к видео и базовые настройки
