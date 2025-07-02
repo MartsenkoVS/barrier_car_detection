@@ -3,20 +3,26 @@ from typing import Generator
 
 import cv2
 import time
-from fastapi import FastAPI, Response
-from fastapi.responses import HTMLResponse, StreamingResponse
+import torch
+from fastapi import FastAPI, StreamingResponse
+from fastapi.responses import HTMLResponse
 from ultralytics import YOLO
 
-# Конфигурация
-VIDEO_PATH = Path("video/cvtest.avi")  # Путь к видео
-TARGET_FPS = 30  # Целевой FPS стрима
-BOUNDARY = "--frame"  # Разделитель в MJPEG
-
+# Путь к видео и базовые настройки
+VIDEO_PATH: Path = Path("video/cvtest.avi")
+TARGET_FPS: int = 30
+MJPEG_BOUNDARY: str = "--frame"
+TARGET_WIDTH: int = 640  # ширина кадра после ресайза
 
 app = FastAPI()
+
+# Загружаем модель и при возможности отправляем её на GPU
 model = YOLO("models/yolo11n.pt")
+if torch.cuda.is_available():
+    model.to("cuda")
+    print("Модель переведена на GPU")
 
-
+# Простая HTML-страница с <img src="/video_feed">
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="ru">
@@ -26,7 +32,6 @@ HTML_PAGE = """
 </head>
 <body>
     <h2>Стрим с детекцией — 30 fps (MJPEG)</h2>
-    <!-- просто вставляем src, браузер сам рендерит JPEG-поток -->
     <img src="/video_feed" width="640" alt="Stream">
 </body>
 </html>
@@ -36,24 +41,32 @@ HTML_PAGE = """
 @app.get("/", response_class=HTMLResponse)
 async def index() -> HTMLResponse:
     """
-    Возвращает простую HTML-страницу с <img src="/video_feed">.
+    Возвращает HTML-страницу с тегом <img>, который
+    сам обновляет кадры через MJPEG-поток.
     """
     return HTMLResponse(HTML_PAGE)
 
 
 def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
     """
-    Синхронный генератор, читающий кадры из видео, детектирующий,
-    кодирующий в JPEG и отдающий в формате multipart/x-mixed-replace.
+    Синхронный генератор MJPEG-потока:
+    1) читает кадры из src,
+    2) ресайзит до TARGET_WIDTH,
+    3) детектит машинки,
+    4) кодирует в JPEG с качеством 60,
+    5) отдаёт в формате multipart/x-mixed-replace.
     """
     cap = cv2.VideoCapture(str(src))
     if not cap.isOpened():
         raise RuntimeError(f"Не удалось открыть видео: {src}")
 
-    # # исходный FPS и шаг пропуска кадров
-    # in_fps = cap.get(cv2.CAP_PROP_FPS) or TARGET_FPS
-    # skip = max(1, round(in_fps / TARGET_FPS))
-    # frame_idx = 0
+    # Очищаем буфер, чтобы не тащить застрявшие кадры
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+    # Определяем, сколько кадров пропускать
+    in_fps = cap.get(cv2.CAP_PROP_FPS) or TARGET_FPS
+    skip = max(1, round(in_fps / TARGET_FPS))
+    frame_idx = 0
 
     try:
         while True:
@@ -61,33 +74,50 @@ def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
             if not ret:
                 break
 
-            # frame_idx += 1
-            # if frame_idx % skip != 0:
-            #     continue
+            frame_idx += 1
+            # Пропускаем лишние кадры для стабильного TARGET_FPS
+            if frame_idx % skip:
+                continue
 
-            # трекинг/детекция
-            results = model.track(
-                frame, conf=0.5, classes=[2, 3, 5, 7], persist=True
+            # Ресайз популярного кадра
+            height, width = frame.shape[:2]
+            new_height = int(height * TARGET_WIDTH / width)
+            frame_resized = cv2.resize(
+                frame,
+                (TARGET_WIDTH, new_height),
+                interpolation=cv2.INTER_LINEAR,
             )
-            annotated = results[0].plot()
 
-            # JPEG-кодирование
-            success, buffer = cv2.imencode('.jpg', annotated)
+            # Детекция + трекинг
+            results = model.track(
+                frame_resized,
+                conf=0.5,
+                classes=[2, 3, 5, 7],
+                persist=True,
+            )
+            annotated = results[0].plot()  # cv2.ndarray
+
+            # Кодируем в JPEG (качество 60)
+            success, buffer = cv2.imencode(
+                ".jpg",
+                annotated,
+                [int(cv2.IMWRITE_JPEG_QUALITY), 60],
+            )
             if not success:
                 continue
 
             jpg_bytes = buffer.tobytes()
 
-            # Собираем chunk для MJPEG
+            # Формируем chunk для MJPEG
             yield (
-                BOUNDARY.encode() + b"\r\n"
+                MJPEG_BOUNDARY.encode() + b"\r\n"
                 + b"Content-Type: image/jpeg\r\n\r\n"
                 + jpg_bytes
                 + b"\r\n"
             )
 
-            # # Контролируем fps
-            # time.sleep(1.0 / TARGET_FPS)
+            # Небольшая пауза, чтобы выровнять ~30 fps
+            time.sleep(1.0 / TARGET_FPS)
     finally:
         cap.release()
 
@@ -95,11 +125,14 @@ def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
 @app.get("/video_feed")
 def video_feed() -> StreamingResponse:
     """
-    Эндпоинт для MJPEG-стрима.
+    Эндпоинт, отдающий MJPEG-поток с заданным boundary.
     """
     return StreamingResponse(
         mjpeg_generator(VIDEO_PATH),
-        media_type=f"multipart/x-mixed-replace; boundary={BOUNDARY.lstrip('--')}"
+        media_type=(
+            f"multipart/x-mixed-replace; boundary="
+            f"{MJPEG_BOUNDARY.lstrip('-')}"
+        ),
     )
 
 
