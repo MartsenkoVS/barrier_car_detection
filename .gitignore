@@ -21,4 +21,4 @@ tmp/
 .DS_Store
 
 # Остальное
-old/
+#old/
