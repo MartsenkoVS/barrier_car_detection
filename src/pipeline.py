@@ -59,13 +59,13 @@ def run_video_stream(
                 cv2.polylines(annotated, [pts], True, roi.color, 2)
                 if roi.car_id is not None:
                     tid = roi.car_id
-                    # if roi.frames_inside > FRAMES_INSIDE_THRESHOLD \
-                    #         and tid not in plate_registry and roi.last_box:
-                    #     x1, y1, x2, y2 = roi.last_box
-                    #     car_crop = frame[y1:y2, x1:x2].copy()
-                    #     plate = detect_plate(car_crop, plate_det, reader)
-                    #     if plate:
-                    #         plate_registry[tid] = plate
+                    if roi.frames_inside > FRAMES_INSIDE_THRESHOLD \
+                            and tid not in plate_registry and roi.last_box:
+                        x1, y1, x2, y2 = roi.last_box
+                        car_crop = frame[y1:y2, x1:x2].copy()
+                        plate = detect_plate(car_crop, plate_det, reader)
+                        if plate:
+                            plate_registry[tid] = plate
                     plate_txt = plate_registry.get(tid, "")
                     status = f"{roi.name}: id={tid}, f={roi.frames_inside}"
                     if plate_txt:
