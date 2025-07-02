@@ -12,15 +12,12 @@ from ultralytics import YOLO
 VIDEO_PATH: Path = Path("video/cvtest.avi")
 TARGET_FPS: int = 30
 MJPEG_BOUNDARY: str = "--frame"
-TARGET_WIDTH: int = 640  # ширина кадра после ресайза
+TARGET_WIDTH: int = 1280  # ширина кадра после ресайза
 
 app = FastAPI()
 
 # Загружаем модель и при возможности отправляем её на GPU
 model = YOLO("models/yolo11n.pt")
-# if torch.cuda.is_available():
-#     model.to("cuda")
-#     print("Модель переведена на GPU")
 
 # Простая HTML-страница с <img src="/video_feed">
 HTML_PAGE = """
@@ -32,7 +29,7 @@ HTML_PAGE = """
 </head>
 <body>
     <h2>Стрим с детекцией — 30 fps (MJPEG)</h2>
-    <img src="/video_feed" width="640" alt="Stream">
+    <img src="/video_feed" width="1280" alt="Stream">
 </body>
 </html>
 """
@@ -94,19 +91,20 @@ def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
                 conf=0.5,
                 classes=[2, 3, 5, 7],
                 persist=True,
+                show=False
             )
             annotated = results[0].plot()  # cv2.ndarray
 
-            # Кодируем в JPEG (качество 60)
-            success, buffer = cv2.imencode(
-                ".jpg",
-                annotated,
-                [int(cv2.IMWRITE_JPEG_QUALITY), 60],
-            )
-            if not success:
-                continue
+            # # Кодируем в JPEG
+            # success, buffer = cv2.imencode(
+            #     ".jpg",
+            #     annotated,
+            #     [int(cv2.IMWRITE_JPEG_QUALITY), 80],
+            # )
+            # if not success:
+            #     continue
 
-            jpg_bytes = buffer.tobytes()
+            jpg_bytes = annotated.tobytes()
 
             # Формируем chunk для MJPEG
             yield (
