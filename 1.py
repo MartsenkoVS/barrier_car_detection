@@ -5,7 +5,10 @@ from pathlib import Path
 import io
 from ultralytics import YOLO
 
+from src.config import TARGET_FPS
+
 model = YOLO("models/yolo11n.pt")
+
 
 
 st.set_page_config("Barrier car detection", layout="wide")
@@ -38,15 +41,22 @@ if start:
     if src:
         stop_button = st.button("Stop")  # Button to stop the inference
         cap = cv2.VideoCapture(src)  # Capture the video
+        
         if not cap.isOpened():
             st.error("Could not open webcam or video source.")
 
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        frame_number = 0
+        skip = max(1, round(fps / TARGET_FPS))
         while cap.isOpened():
             success, frame = cap.read()
             if not success:
                 st.warning("Failed to read frame from webcam. Please verify the webcam is connected properly.")
                 break
-
+            
+            frame_number += 1
+            if frame_number % skip != 0:
+                continue
             # Process frame with model
             results = model.track(
                 frame, conf=0.5, classes=[2, 3, 5, 7], persist=True

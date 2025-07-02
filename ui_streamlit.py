@@ -19,21 +19,6 @@ from src.downloader import download_yadisk
 from src.config import TARGET_FPS
 
 
-def downscale(frame: np.ndarray, max_width: int = 1280) -> np.ndarray:
-    """Сжимает BGR-кадр, сохраняя пропорции, если ширина > max_width."""
-    h, w = frame.shape[:2]
-    if w <= max_width:
-        return frame
-    scale = max_width / w
-    new_size = (int(w * scale), int(h * scale))
-    return cv2.resize(frame, new_size, interpolation=cv2.INTER_AREA)
-
-def bgr_to_jpeg(frame: np.ndarray, quality: int = 80) -> bytes:
-    """BGR-кадр -> bytes(JPEG) для быстрой передачи в Streamlit."""
-    ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-    return buf.tobytes() if ok else b""
-
-
 st.set_page_config("Barrier car detection", layout="wide")
 st.title("Детекция машин в зоне шлагбаума")
 st.markdown("Тестовое видео уже загружено на сервер, можно сразу нажать 'Старт',\
@@ -55,17 +40,15 @@ if start:
         st.error("Нужно выбрать файл или указать ссылку!")
         st.stop()
 
-    q_img = queue.Queue(maxsize=2)
-    q_txt = queue.Queue(maxsize=2)
+    q_img = queue.Queue(maxsize=-1)
+    q_txt = queue.Queue(maxsize=-1)
 
     stop_event = Event()
 
     def _cb(frame, text) -> None:           # callback из конвейера
-        try:
-            q_img.put_nowait(frame)
-            q_txt.put_nowait(text)
-        except queue.Full:
-            pass
+        q_img.put_nowait(frame)
+        q_txt.put_nowait(text)
+
 
     # запускаем поток и «привязываем» его к сессии Streamlit
     t = threading.Thread(
@@ -107,21 +90,9 @@ if start:
             time.sleep(0.01)
             continue
 
-        # контролируем target_fps
-        now = time.time()
-        if now - last_ts < 1 / TARGET_FPS:
-            continue
-        last_ts = now
-
-        # 1) уменьшаем размер
-        small = downscale(frame, max_width=640)
-        # 2) конвертируем BGR → RGB
-        small_rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
-
         # 3) выводим через placeholder
         img_pl.image(
-            small_rgb,
-            use_container_width=True
+            channels="BGR", width=640
         )
         txt_pl.markdown(f"**Статус:** {text}")
 
