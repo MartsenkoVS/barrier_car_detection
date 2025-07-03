@@ -101,10 +101,12 @@ def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
             #     annotated,
             #     [int(cv2.IMWRITE_JPEG_QUALITY), 80],
             # )
-            # if not success:
-            #     continue
 
-            jpg_bytes = annotated.tobytes()
+            success, buffer = cv2.imencode('.jpg', annotated)
+            if not success:
+                continue
+            
+            jpg_bytes = buffer.tobytes()
 
             # Формируем chunk для MJPEG
             yield (
