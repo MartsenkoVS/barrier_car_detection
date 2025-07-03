@@ -33,11 +33,11 @@ def run_video_stream(
     cap = cv2.VideoCapture(str(source))
     fps_in = cap.get(cv2.CAP_PROP_FPS) or 30.0
     cap.release()
-    # stride = max(1, round(fps_in / TARGET_FPS))
+    stride = max(1, round(fps_in / TARGET_FPS))
 
     stream = car_det.track(
         source=str(source), stream=True,
-        conf=CONF_CAR, classes=CLASSES_CAR, #vid_stride=stride,
+        conf=CONF_CAR, classes=CLASSES_CAR, vid_stride=stride,
         verbose=False, persist=True
     )
     

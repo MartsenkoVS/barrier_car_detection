@@ -9,7 +9,7 @@ from src.config import TARGET_FPS
 
 model = YOLO("models/yolo11n.pt")
 
-
+TARGET_WIDTH = 640
 
 st.set_page_config("Barrier car detection", layout="wide")
 st.title("Детекция машин в зоне шлагбаума")
@@ -45,6 +45,9 @@ if start:
         if not cap.isOpened():
             st.error("Could not open webcam or video source.")
 
+        # Очищаем буфер, чтобы не тащить застрявшие кадры
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         frame_number = 0
         skip = max(1, round(fps / TARGET_FPS))
@@ -57,6 +60,15 @@ if start:
             frame_number += 1
             if frame_number % skip != 0:
                 continue
+
+            # Ресайз
+            height, width = frame.shape[:2]
+            new_height = int(height * TARGET_WIDTH / width)
+            frame_resized = cv2.resize(
+                frame,
+                (TARGET_WIDTH, new_height),
+                interpolation=cv2.INTER_LINEAR,
+            )
             # Process frame with model
             results = model.track(
                 frame, conf=0.5, classes=[2, 3, 5, 7], persist=True

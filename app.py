@@ -3,7 +3,6 @@ from typing import Generator
 
 import cv2
 import time
-import torch
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
 from ultralytics import YOLO
@@ -45,14 +44,6 @@ async def index() -> HTMLResponse:
 
 
 def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
-    """
-    Синхронный генератор MJPEG-потока:
-    1) читает кадры из src,
-    2) ресайзит до TARGET_WIDTH,
-    3) детектит машинки,
-    4) кодирует в JPEG с качеством 60,
-    5) отдаёт в формате multipart/x-mixed-replace.
-    """
     cap = cv2.VideoCapture(str(src))
     if not cap.isOpened():
         raise RuntimeError(f"Не удалось открыть видео: {src}")
@@ -76,7 +67,7 @@ def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
             if frame_idx % skip:
                 continue
 
-            # Ресайз популярного кадра
+            # Ресайз
             height, width = frame.shape[:2]
             new_height = int(height * TARGET_WIDTH / width)
             frame_resized = cv2.resize(
@@ -91,16 +82,9 @@ def mjpeg_generator(src: Path) -> Generator[bytes, None, None]:
                 conf=0.5,
                 classes=[2, 3, 5, 7],
                 persist=True,
-                show=False
+                verbose=False
             )
-            annotated = results[0].plot()  # cv2.ndarray
-
-            # # Кодируем в JPEG
-            # success, buffer = cv2.imencode(
-            #     ".jpg",
-            #     annotated,
-            #     [int(cv2.IMWRITE_JPEG_QUALITY), 80],
-            # )
+            annotated = results[0].plot()
 
             success, buffer = cv2.imencode('.jpg', annotated)
             if not success:
