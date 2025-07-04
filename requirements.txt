@@ -1,5 +1,7 @@
 easyocr==1.7.2
 opencv-python==4.11.0.86
 shapely==2.1.1
-streamlit==1.46.1
 ultralytics==8.3.161
+fastapi==0.115.14
+uvicorn[standard]==0.35.0
+python-multipart==0.0.20
