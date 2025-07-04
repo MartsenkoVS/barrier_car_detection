@@ -6,6 +6,7 @@ from typing import Callable, Dict
 from ultralytics import YOLO
 import easyocr
 from threading import Event
+import time
 
 from src.config import (CAR_MODEL_PATH, PLATE_MODEL_PATH, POLYGONS_CFG,
                      TARGET_FPS, TARGET_WIDTH, CONF_CAR, CLASSES_CAR,
@@ -121,6 +122,9 @@ def run_video_stream(
             # Читаем следующий кадр
             ret, frame_orig = cap.read()
             frame_idx += 1
+
+            # Небольшая пауза, чтобы выровнять ~30 fps
+            time.sleep(1.0 / TARGET_FPS)
 
     finally:
         cap.release()
