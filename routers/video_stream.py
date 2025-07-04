@@ -9,10 +9,9 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
 
 from src.config import MJPEG_BOUNDARY, TARGET_WIDTH
-from services.streamer import mjpeg_generator, plates_store
+from services.streamer import mjpeg_generator, plates_live
 
 
 # --- инициализации -----------------------------------------------------------
@@ -24,19 +23,17 @@ VIDEO_DIR.mkdir(exist_ok=True)
 
 # --- эндпоинты ---------------------------------------------------------------
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request, src: str | None = None) -> HTMLResponse:
+async def index(request: Request, src: str | None = None):
     """
-    Страница с формой. Если ?src=..., вставляем <img> со стримом.
+    Главная страница. Если ?src=... передали — шаблон покажет <img>,
+    иначе — текстовую подсказку.
     """
-    stream_block = (
-        f'<img id="stream" src="/video_feed?src={src}" '
-        f'width="{TARGET_WIDTH}" alt="Stream">' if src else
-        '<p style="color:#777;">Загрузите видео и нажмите «Старт»</p>'
-    )
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "stream_block": stream_block},
-    )
+    context = {
+        "request": request,
+        "src": src,
+        "width": TARGET_WIDTH,
+    }
+    return templates.TemplateResponse("index.html", context)
 
 
 @router.post("/", response_class=HTMLResponse)
@@ -88,4 +85,4 @@ async def get_plates() -> JSONResponse:
     """
     Список распознанных номеров.
     """
-    return JSONResponse(sorted(plates_store))
+    return JSONResponse(plates_live)

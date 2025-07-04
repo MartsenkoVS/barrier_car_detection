@@ -7,13 +7,14 @@ from queue import Queue, Full, Empty
 
 import cv2
 import numpy as np
+from collections import OrderedDict
+import time
 
 from src.pipeline import run_video_stream
-
 from src.config import MJPEG_BOUNDARY
 
 # Глобальное хранилище для распознанных номеров
-plates_store: set[str] = set()
+plates_live = OrderedDict()
 
 def mjpeg_generator(
     source: Path,
@@ -43,7 +44,8 @@ def mjpeg_generator(
         for part in parts:
             if "plate=" in part:
                 plate = part.split("plate=")[-1]
-                plates_store.add(plate)
+                if plate not in plates_live:
+                    plates_live[plate] = time.time()
 
     # Запускаем pipeline в фоновом потоке
     worker = threading.Thread(

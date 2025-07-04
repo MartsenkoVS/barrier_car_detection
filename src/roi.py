@@ -59,10 +59,11 @@ def update_rois(
     tids: List[int | None],
     rois: Dict[str, ROIState],
 ) -> None:
+    assigned = set()
     for roi in rois.values():
         roi_found = False
         for (x1, y1, x2, y2), tid in zip(boxes, tids):
-            if tid is None or _bbox_outside_roi(x1, y1, x2, y2, roi.bbox):
+            if tid is None or tid in assigned or _bbox_outside_roi(x1, y1, x2, y2, roi.bbox):
                 continue
             det_poly = box(float(x1), float(y1), float(x2), float(y2))
             if not roi.prep.intersects(det_poly):
@@ -75,6 +76,7 @@ def update_rois(
                     roi.frames_inside = 1
                 roi.missing_count = 0
                 roi.last_box = np.array([x1, y1, x2, y2], dtype=int)
+                assigned.add(tid)
                 roi_found = True
                 break
 
