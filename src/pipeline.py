@@ -95,11 +95,12 @@ def run_video_stream(
 
             status_parts: list[str] = []
             
-            # рисуем полигоны
-            pts = np.array(list(roi.poly.exterior.coords)[:-1], np.int32)
-            cv2.polylines(annotated, [pts], True, roi.color, 2)
+
 
             for idx, roi in enumerate(rois.values()):
+                # рисуем полигоны
+                pts = np.array(list(roi.poly.exterior.coords)[:-1], np.int32)
+                cv2.polylines(annotated, [pts], True, roi.color, 2)
                 if roi.car_id is not None:
                     tid = roi.car_id
                     if (roi.plate_detection
