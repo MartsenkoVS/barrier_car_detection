@@ -85,4 +85,4 @@ async def get_plates() -> JSONResponse:
     """
     Список распознанных номеров.
     """
-    return JSONResponse(plates_live)
+    return JSONResponse(list(plates_live.keys()))
