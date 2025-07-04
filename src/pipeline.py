@@ -95,8 +95,6 @@ def run_video_stream(
 
             status_parts: list[str] = []
             
-
-
             for idx, roi in enumerate(rois.values()):
                 # рисуем полигоны
                 pts = np.array(list(roi.poly.exterior.coords)[:-1], np.int32)
