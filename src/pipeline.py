@@ -83,14 +83,14 @@ def run_video_stream(
             update_rois(boxes, tids, rois)
 
             # OCR и отрисовка
-            # Размеры для текста
+            # Размеры для отрисовки текста
             line_h        = 30
             top_pad       = 10
             bottom_pad    = 10
             banner_h      = top_pad + bottom_pad + line_h * len(rois)
             banner_w      = TARGET_WIDTH
 
-            # чёрная плашка
+            # чёрная плашка для текста
             banner = np.zeros((banner_h, banner_w, 3), dtype=np.uint8)
 
             status_parts: list[str] = []
@@ -134,7 +134,7 @@ def run_video_stream(
                     thickness=2,
                     lineType=cv2.LINE_AA,
                 )
-
+            
             annotated = np.vstack((banner, annotated))
 
             # Передаем в calback
