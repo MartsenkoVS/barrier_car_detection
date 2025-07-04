@@ -5,14 +5,14 @@ from typing import Callable, Dict
 
 from ultralytics import YOLO
 import easyocr
-from transliterate import translit
 from threading import Event
 
 from src.config import (CAR_MODEL_PATH, PLATE_MODEL_PATH, POLYGONS_CFG,
-                     TARGET_FPS, CONF_CAR, CLASSES_CAR,
+                     TARGET_FPS, TARGET_WIDTH, CONF_CAR, CLASSES_CAR,
                      FRAMES_INSIDE_THRESHOLD)
 from src.roi import build_rois, update_rois
 from src.ocr import detect_plate
+from src.utils import resize_frame, scale_boxes
 
 
 def run_video_stream(
@@ -26,64 +26,101 @@ def run_video_stream(
     plate_det = YOLO(str(PLATE_MODEL_PATH))
     reader    = easyocr.Reader(["ru"], gpu=True)
 
-    rois = build_rois(POLYGONS_CFG)
     plate_registry: Dict[int, str] = {}
 
-    # stride
     cap = cv2.VideoCapture(str(source))
-    fps_in = cap.get(cv2.CAP_PROP_FPS) or 30.0
-    cap.release()
-    stride = max(1, round(fps_in / TARGET_FPS))
+    if not cap.isOpened():
+        raise RuntimeError(f"Не удалось открыть видео: {source}")
 
-    stream = car_det.track(
-        source=str(source), stream=True,
-        conf=CONF_CAR, classes=CLASSES_CAR, vid_stride=stride,
-        verbose=False, persist=True
-    )
+    # Очищаем буфер, чтобы не тащить застрявшие кадры
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+    # Определяем, сколько кадров пропускать
+    in_fps = cap.get(cv2.CAP_PROP_FPS) or TARGET_FPS
+    skip = max(1, round(in_fps / TARGET_FPS))
+
+    # Читаем первый кадр для рассчета параметров
+    ret, frame_orig = cap.read()
+    if not ret:
+        cap.release()
+        return
     
+    # Ресайз
+    frame_resized, scale = resize_frame(frame_orig, TARGET_WIDTH)
+    inv_scale = 1 / scale
+    rois = build_rois(POLYGONS_CFG, scale)
+    frame_idx = 1
+
     try:
-        for res in stream:
-            if stop_event.is_set():
-                break
-            frame = res.orig_img
-            annotated = res.plot(line_width=2)
+        while not stop_event.is_set() and ret:
+            # Пропускаем лишние кадры для стабильного TARGET_FPS
+            if frame_idx % skip != 0:
+                ret, frame_orig = cap.read()
+                frame_idx += 1
+                continue
+            
+            frame_resized, _ = resize_frame(frame_orig, TARGET_WIDTH)
+            
+            # Детекция + трекинг машин
+            results = car_det.track(
+                frame_resized,
+                conf= CONF_CAR,
+                classes=CLASSES_CAR,
+                persist=True,
+                verbose=False
+            )
+            res = results[0]
+            annotated = res.plot()
+
             if res.boxes and res.boxes.is_track:
                 boxes = res.boxes.xyxy.cpu().numpy()
                 tids  = res.boxes.id.int().cpu().tolist()
-                update_rois(boxes, tids, rois)
             else:
-                update_rois(np.empty((0, 4), np.float32), [], rois)
+                boxes = np.empty((0, 4), dtype=float)
+                tids = []
+            # Обновляем состояние зон
+            update_rois(boxes, tids, rois)
 
+            # OCR и отрисовка
             status_parts: list[str] = []
             for roi in rois.values():
+                # рисуем полигоны
                 pts = np.array(list(roi.poly.exterior.coords)[:-1], np.int32)
                 cv2.polylines(annotated, [pts], True, roi.color, 2)
+                
                 if roi.car_id is not None:
                     tid = roi.car_id
-                    if roi.frames_inside > FRAMES_INSIDE_THRESHOLD \
-                            and tid not in plate_registry and roi.last_box:
-                        x1, y1, x2, y2 = roi.last_box
-                        car_crop = frame[y1:y2, x1:x2].copy()
+                    if (roi.plate_detection
+                        and roi.frames_inside > FRAMES_INSIDE_THRESHOLD
+                        and tid not in plate_registry
+                        and roi.last_box is not None
+                    ):
+                        # Вырезаем из оригинального кадра
+                        x1, y1, x2, y2 = scale_boxes(roi.last_box, inv_scale)
+                        car_crop = frame_orig[y1:y2, x1:x2]
                         plate = detect_plate(car_crop, plate_det, reader)
                         if plate:
                             plate_registry[tid] = plate
+
                     plate_txt = plate_registry.get(tid, "")
-                    status = f"{roi.name}: id={tid}, f={roi.frames_inside}"
+                    status = f"{roi.name}: id={tid}, f={roi.frames_inside}, m={roi.missing_count}"
                     if plate_txt:
-                        status += f", plate={translit(plate_txt, 'en')}"
+                        status += f", plate={plate_txt}"
                 else:
                     status = f"{roi.name}: No cars"
+
                 status_parts.append(status)
                 cv2.putText(
                     annotated, status,
-                    (30, 50 + 50 * list(rois).index(roi.name)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.5, roi.color, 2,
+                    (15, 30 + 30 * list(rois).index(roi.name)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, roi.color, 1,
                 )
-
+            # Передаем в calback
             on_frame(annotated, " | ".join(status_parts))
 
+            # Читаем следующий кадр
+            ret, frame_orig = cap.read()
+            frame_idx += 1
+
     finally:
-        try:                       
-            stream.close()      # закрываем генератор Ultralytics
-        except AttributeError:
-            pass
+        cap.release()

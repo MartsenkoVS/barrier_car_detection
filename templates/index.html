@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Barrier Car Detection</title>
+
+  <!-- ── С Т И Л И ────────────────────────────────────────────── -->
+    <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
+
+    /* общий внешний отступ */
+    body{
+        display:flex;min-height:100vh;padding:10px;
+        background:#fafafa;color:#222;
+    }
+
+    /* ▸ левая колонка (форма) ------------------------------------------------- */
+    #sidebar{
+        width:265px;                                   /* прежняя ширина */
+        background:#fff;border:1px solid #ddd;border-radius:4px;
+        padding:10px 10px;flex-shrink:0;
+        max-height:calc(100vh - 20px);overflow:auto;
+        /* отступ справа, чтобы не прилипать к видео */
+        margin-right:16px;
+    }
+    #sidebar h2{font-size:1.15rem;margin-bottom:1rem}
+    #sidebar label{display:block;font-size:.86rem;margin-bottom:.5rem}
+
+    /* файл + текстовое поле: менее жирный padding, чтобы влезало “Файл не выбран” */
+    #sidebar input[type="file"],
+    #sidebar input[type="text"]{
+        width:100%;padding:5px;border:1px solid #ccc;border-radius:4px;
+        margin-bottom:14px;font-size:.86rem;
+    }
+
+    #sidebar button{
+        width:100%;padding:10px;border:none;border-radius:4px;
+        background:#4caf50;color:#fff;font-size:1rem;cursor:pointer
+    }
+    #sidebar button:hover{background:#43a047}
+    progress{width:100%;height:10px;margin-bottom:16px}
+
+    /* ▸ правая часть (видео + номера) ---------------------------------------- */
+    #main{
+        flex:1;display:flex;flex-direction:row;overflow:hidden;
+    }
+
+    /* видео с отступом снизу/сверху внутри flex-строки */
+    #viewer{
+        flex:1;display:flex;align-items:center;justify-content:center;
+        background:#000;border:1px solid #ddd;border-radius:4px;min-height:0;
+    }
+    #stream{max-width:100%;max-height:100%}
+
+    /* панель номеров справа от видео */
+    #plates{
+        width:230px;margin-left:16px;
+        background:#fff;border:1px solid #ddd;border-radius:4px;
+        padding:10px 10px;display:flex;flex-direction:column;
+        max-height:calc(100vh - 20px);overflow:auto;flex-shrink:0;
+    }
+    #plates h3{font-size:1rem;margin-bottom:8px}
+    #plate-list li{font-size:.9rem;line-height:1.4}
+  </style>
+
+</head>
+<body>
+
+  <!-- ▸ левая панель --------------------------------------------------------- -->
+  <div id="sidebar">
+    <h2>Загрузка видео</h2>
+    <form id="upload-form" enctype="multipart/form-data">
+      <label>Файл:
+        <!-- загрузка файла -->
+        <input type="file" name="vid_file"
+               accept=".mp4,.mov,.avi,.mkv,video/*" id="file-input">
+      </label>
+
+      <label>Локальный путь:
+        <input type="text" name="local" value="video/cvtest.avi">
+      </label>
+
+      <progress id="upload-progress" max="1" value="0" hidden></progress>
+      <button type="submit">Старт</button>
+    </form>
+  </div>
+
+  <!-- ▸ правая зона ---------------------------------------------------------- -->
+  <div id="main">
+    <div id="viewer">
+      {{ stream_block|safe }}
+    </div>
+
+    <div id="plates">
+      <h3>Список машин</h3>
+      <ul id="plate-list"></ul>
+    </div>
+  </div>
+
+  <!-- ── J a v a S c r i p t ─────────────────────────────────── -->
+  <script>
+    /* элементы */
+    const form        = document.getElementById('upload-form');
+    const progressBar = document.getElementById('upload-progress');
+    const fileInput   = document.getElementById('file-input');
+
+    /* 0. при выборе файла сразу показываем progress-bar = 0 % */
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) {
+        progressBar.hidden = false;
+        progressBar.value  = 0;
+      }
+    });
+
+    /* 1. отправка формы XHR + клиентский progress */
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const data = new FormData(form);
+      const xhr  = new XMLHttpRequest();
+      xhr.open('POST', '/', true);
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const resp = JSON.parse(xhr.responseText);
+          window.location = resp.redirect;   // переходим на поток
+        } else {
+          alert('Ошибка: ' + xhr.status + ' ' + xhr.statusText);
+        }
+      };
+      xhr.onerror = () => alert('Network error');
+
+      xhr.upload.onprogress = (ev)=>{
+        if (ev.lengthComputable) {
+          progressBar.hidden = false;
+          progressBar.value  = ev.loaded / ev.total;
+        }
+      };
+      xhr.send(data);
+    });
+
+    /* 2. подгрузка списка номеров */
+    async function updatePlates(){
+      try{
+        const r = await fetch('/plates');
+        if(!r.ok) return;
+        const plates = await r.json();
+        const ul = document.getElementById('plate-list');
+        ul.innerHTML = '';
+        plates.forEach(p=>{
+          const li = document.createElement('li');
+          li.textContent = p;
+          ul.appendChild(li);
+        });
+      }catch(e){ console.error(e); }
+    }
+    setInterval(updatePlates, 1000);
+    updatePlates();
+  </script>
+</body>
+</html>

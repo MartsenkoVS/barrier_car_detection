@@ -1,4 +1,3 @@
-from __future__ import annotations
 import re
 from typing import Optional
 
@@ -9,8 +8,9 @@ from ultralytics import YOLO
 
 from src.config import CONF_PLATE
 
-PLATE_REGEX = re.compile(r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$')
-LETTER_FIX = {'0': 'О', '1': 'Т', '8': 'В', '4': 'А'}
+PLATE_REGEX = re.compile(r'^[ABEKMHOPCTYX]\d{3}[ABEKMHOPCTYX]{2}\d{2,3}$')
+LETTER_FIX = {'0': 'O', '1': 'T', '8': 'B', '4': 'A'}
+ALLOWLIST = 'ABEKMHOPCTYX0123456789'
 
 
 def _fix_plate(text: str) -> str:
@@ -26,8 +26,8 @@ def _fix_plate(text: str) -> str:
 
 def ocr_plate(crop: np.ndarray, reader: easyocr.Reader) -> Optional[str]:
     gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-    res = reader.readtext(gray, detail=1, allowlist='АВЕКМНОРСТУХ0123456789',
-                          text_threshold=0.6, low_text=0.4, blocklist='')
+    res = reader.readtext(gray, detail=1, allowlist=ALLOWLIST,
+                          text_threshold=0.6, low_text=0.4)
     if not res:
         return None
     text = "".join(r[1] for r in reversed(res)).strip()
@@ -45,7 +45,7 @@ def detect_plate(
         return None
     for bx in result.boxes.xyxy.cpu().numpy():
         x1, y1, x2, y2 = map(int, bx)
-        crop_plate = crop_car[y1:y2, x1:x2].copy()
+        crop_plate = crop_car[y1:y2, x1:x2]
         plate = ocr_plate(crop_plate, reader)
         if plate:
             return plate
