@@ -82,17 +82,6 @@ def run_video_stream(
             # Обновляем состояние зон
             update_rois(boxes, tids, rois)
 
-            # OCR и отрисовка
-            # # Размеры для отрисовки текста
-            # line_h        = 30
-            # top_pad       = 10
-            # bottom_pad    = 10
-            # banner_h      = top_pad + bottom_pad + line_h * len(rois)
-            # banner_w      = TARGET_WIDTH
-
-            # # чёрная плашка для текста
-            # banner = np.zeros((banner_h, banner_w, 3), dtype=np.uint8)
-
             status_parts: list[str] = []
             
             for idx, roi in enumerate(rois.values()):
@@ -127,20 +116,6 @@ def run_video_stream(
                     (15, 30 + 30 * list(rois).index(roi.name)),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, roi.color, 1,
                 )
-            #     # Рисуем текст
-            #     y = top_pad + line_h * (idx + 1) - 8
-            #     cv2.putText(
-            #         banner,
-            #         status,
-            #         org=(15, y),
-            #         fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-            #         fontScale=1.0,
-            #         color=roi.color,
-            #         thickness=2,
-            #         lineType=cv2.LINE_AA,
-            #     )
-            
-            # annotated = np.vstack((banner, annotated))
 
             # Передаем в calback
             on_frame(annotated, " | ".join(status_parts))

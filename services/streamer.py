@@ -65,7 +65,7 @@ def mjpeg_generator(
                 continue  # ждем следующий кадр
 
             # Кодируем JPEG
-            success, buf = cv2.imencode(".jpg", frame)
+            success, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
             if not success:
                 continue
             jpg_bytes = buf.tobytes()
@@ -81,5 +81,6 @@ def mjpeg_generator(
         raise
     finally:
         # Завершаем работу фонового потока
+        plates_live.clear()
         stop_event.set()
         worker.join(timeout=1)
