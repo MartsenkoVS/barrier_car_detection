@@ -5,7 +5,7 @@ CAR_MODEL_PATH = Path("models/yolo11n.pt")
 PLATE_MODEL_PATH = Path("models/plate_detector.pt")
 VIDEO_PATH = Path("video/cvtest.avi")
 
-TARGET_FPS = 60.0
+TARGET_FPS = 30.0
 TARGET_WIDTH = 960
 MJPEG_BOUNDARY = "--frame" # Разделитель кадров в MJPEG
 
@@ -13,7 +13,7 @@ CLASSES_CAR = [2, 3, 5, 7]     # car, motorbike, bus, truck
 CONF_CAR = 0.5
 CONF_PLATE = 0.6
 
-FRAMES_INSIDE_THRESHOLD = 60
+FRAMES_INSIDE_THRESHOLD = 30
 MISSING_FRAMES_THRESHOLD = 3
 ROI_OVERLAP = 0.2
 

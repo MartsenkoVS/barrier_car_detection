@@ -51,7 +51,7 @@ async def start(
     if vid_file and vid_file.filename:
         dest = VIDEO_DIR / vid_file.filename
         with open(dest, "wb") as f:
-            while chunk := await vid_file.read( * 1024 * 1024):
+            while chunk := await vid_file.read(16 * 1024 * 1024):
                 f.write(chunk)
         src_path = dest
 
